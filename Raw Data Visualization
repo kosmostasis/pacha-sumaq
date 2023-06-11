@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+</head>
+<body>
+  <input type="file" id="csvFile" accept=".csv">
+  <button onclick="executeVisualization()">Execute</button>
+  <br>
+  <canvas id="visualizationCanvas"></canvas>
+
+  <script src="p5.js"></script>
+  <script>
+    let table;
+    let data = [];
+    let animating = false;
+    let currentIndex = 0;
+
+    function preload() {
+      table = loadTable('data.csv', 'csv', 'header');
+    }
+
+    function setup() {
+      createCanvas(800, 600);
+      noLoop();
+    }
+
+    function executeVisualization() {
+      // Reset data array
+      data = [];
+
+      // Get the uploaded file
+      let fileInput = document.getElementById('csvFile');
+      let file = fileInput.files[0];
+
+      // Check if file is selected
+      if (file) {
+        let reader = new FileReader();
+
+        // Read file as text
+        reader.readAsText(file);
+
+        // When file is loaded
+        reader.onload = function(event) {
+          let contents = event.target.result;
+
+          // Parse CSV data
+          table = parseCSV(contents, 'header');
+
+          // Parse the data
+          for (let row of table.rows) {
+            let rowData = {};
+            for (let col of table.columns) {
+              let value = row.get(col);
+              rowData[col] = value;
+            }
+            data.push(rowData);
+          }
+
+          // Start animation
+          currentIndex = 0;
+          animating = true;
+          loop();
+        }
+      }
+    }
+
+    function draw() {
+  background(220);
+
+  // Stop animation when reaching the end of the data
+  if (currentIndex >= data.length - 1) {
+    animating = false;
+    noLoop();
+  }
+
+  // Draw animation
+  if (animating) {
+    let keys = Object.keys(data[currentIndex]);
+    for (let i = 0; i < keys.length - 1; i++) {
+      let x = map(currentIndex, 0, data.length - 1, 0, width);
+      let y = map(data[currentIndex][keys[i]], 0, maxMeasurement(keys[i]), height, 0);
+
+      let r = random(255);
+      let g = random(255);
+      let b = random(255);
+
+      let size = map(data[currentIndex][keys[i]], 0, maxMeasurement(keys[i]), 10, 100);
+
+      fill(r, g, b, 128);
+      if (i % 3 === 0) {
+        ellipse(x, y, size, size);
+      } else if (i % 3 === 1) {
+        rect(x, y, size, size);
+      } else {
+        triangle(
+          x, y - size / 2,
+          x + size / 2, y + size / 2,
+          x - size / 2, y + size / 2
+        );
+      }
+    }
+
+    if (frameCount >= 60) {
+      currentIndex++;
+      frameCount = 0;
+    }
+  }
+}
+
+    function maxMeasurement(column) {
+      let max = 0;
+      for (let i = 0; i < data.length; i++) {
+        let value = parseFloat(data[i][column]);
+        if (value > max) {
+          max = value;
+        }
+      }
+
+      return max;
+    }
+
+    function getColor(index) {
+      let colors = ['red', 'green', 'blue', 'orange', 'purple', 'yellow', 'cyan'];
+      return colors[index % colors.length];
+    }
+
+    function parseCSV(data, header) {
+      let rows = data.split('\n');
+      let result = new p5.Table();
+
+      // Parse headers
+      let headers = rows[0].split(',');
+      for (let i = 0; i < headers.length; i++) {
+        result.addColumn(headers[i]);
+      }
+
+      // Parse data
+      let startRow = header ? 1 : 0;
+      for (let i = startRow; i < rows.length; i++) {
+        let row = rows[i].split(',');
+        let newRow = result.addRow();
+        for (let j = 0; j < headers.length; j++) {
+          newRow.setString(headers[j], row[j]);
+        }
+      }
+
+      return result;
+    }
+  </script>
+</body>
+</html>
